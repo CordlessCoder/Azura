@@ -171,8 +171,11 @@ impl<'a> Scanner<'a> {
                         break Err(ScannerError { line: self.line, pos,  message: Some("String start at the end of input"), kind: ScannerErrorKind::IncompleteToken {token: Some(Str(""))} })
                     };
                     let mut end = start;
-                    while chars.peek() != Some(quote) {
-                        if chars.next_char().is_none() {
+                    let mut current = None;
+                    // Used for escaping quotes with `\`
+                    while !(current != Some('\\') && chars.peek() == Some(quote)) {
+                        current = chars.next_char();
+                        if current.is_none() {
                             break 'mainloop Err(ScannerError {
                                 line: self.line,
                                 pos,
