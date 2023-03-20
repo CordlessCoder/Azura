@@ -1,2 +1,8 @@
 bin/*.exe
 vscode/settings.json
+**/target/**
+**/release/**
+**/Cargo.lock
+.mypy_cache
+.rustc_info.json
+.ccls-cache
