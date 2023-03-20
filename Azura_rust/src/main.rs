@@ -4,6 +4,7 @@ fn main() {
     let input = "
 // This is a comment
 100 + (4.50 * 24.05) / 10
+0xff.1
 25 + 30.695;
 ";
     let mut scanner = Scanner::new(input);

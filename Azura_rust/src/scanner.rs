@@ -1,6 +1,5 @@
 mod tokens;
 use std::{
-    default,
     iter::{Enumerate, Peekable},
     str::Chars,
 };
@@ -239,14 +238,18 @@ impl<'a> Scanner<'a> {
                     let integer = &self.source[start..=end];
 
                     if float {
-                        match integer.parse() {
-                            Ok(float) => Ok(Float(float)),
-                            Err(_) => Err(ScannerError {
-                                kind: ScannerErrorKind::IncorrectLiteral { length: end + 1 },
-                                line: self.line,
-                                pos,
-                                message: Some("Failed to parse float literal"),
-                            }),
+                        if handled_suffix {
+                            Err(ScannerError { kind: ScannerErrorKind::IncorrectLiteral { length: end - pos }, line: self.line, pos, message: Some("Attempted to create a float literal with a leading zero or base suffix(0, 0b or 0x)") })
+                        } else {
+                            match integer.parse() {
+                                Ok(float) => Ok(Float(float)),
+                                Err(_) => Err(ScannerError {
+                                    kind: ScannerErrorKind::IncorrectLiteral { length: end + 1 },
+                                    line: self.line,
+                                    pos,
+                                    message: Some("Failed to parse float literal"),
+                                }),
+                            }
                         }
                     } else {
                         match isize::from_str_radix(integer, radix) {
@@ -289,7 +292,7 @@ impl<'a> Scanner<'a> {
 }
 
 fn numeric_terminator(check: char) -> bool {
-    check.is_ascii_whitespace() || !check.is_numeric() && check != '.'
+    check.is_ascii_whitespace() || !check.is_alphanumeric() && check != '.'
 }
 
 #[derive(Debug, PartialEq, Default)]
