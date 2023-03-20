@@ -1,0 +1,55 @@
+#[derive(Debug, PartialEq)]
+pub enum TokenKind<'a> {
+    // Single-character tokens;
+    OPar,
+    CPar,
+    OBrace,
+    CBrace,
+    Comma,
+    Dot,
+    Semicolon,
+    Colon,
+    Hashtag,
+    // One or two character tokens
+    Div,
+    DivAssign,
+    Mul,
+    MulAssign,
+    Sub,
+    SubAssign,
+    Add,
+    AddAssign,
+    Equal,
+    NotEqual,
+    Bang,
+    Reassignment,
+    Greater,
+    GreaterOrEqual,
+    Less,
+    LessOrEqual,
+    Walrus,
+    // Literals
+    Ident(&'a str),
+    Str(&'a str),
+    Integer(isize), // TODO: Handle overflows, arbitrary precision
+    Float(f64),     // <-/
+
+                    // // Keywords
+                    // And,
+                    // Class,
+                    // Else,
+                    // False,
+                    // For,
+                    // Func,
+                    // If,
+                    // Nil,
+                    // Or,
+                    // Info,
+                    // Return,
+                    // Super,
+                    // This,
+                    // True,
+                    // Var,
+                    // While,
+                    // Interpolation,
+}
