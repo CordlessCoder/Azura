@@ -171,9 +171,10 @@ impl<'iter> LendingIterator for Scanner<'iter> {
                             chars.next_char();
                             Ok(GreaterOrEqual)
                         }
-                        Some('<') => {
+                        Some('>') => {
                             chars.next_char();
                             if chars.peek() == Some('=') {
+                                chars.next_char();
                                 Ok(RightShiftAssign)
                             } else {
                                 Ok(RightShift)
@@ -192,6 +193,7 @@ impl<'iter> LendingIterator for Scanner<'iter> {
                         Some('<') => {
                             chars.next_char();
                             if chars.peek() == Some('=') {
+                                chars.next_char();
                                 Ok(LeftShiftAssign)
                             } else {
                                 Ok(LeftShift)
@@ -345,8 +347,10 @@ impl<'iter> LendingIterator for Scanner<'iter> {
                                 },
                                 line: self.line,
                                 pos,
-                                message: Some("Failed to parse integer literal".into()),
-                                context: self.source.get(start..=end),
+                                message: Some(
+                                    format!("Failed to parse base {radix} integer literal").into(),
+                                ),
+                                context: self.source.get(pos..=end),
                             }),
                         }
                     }
