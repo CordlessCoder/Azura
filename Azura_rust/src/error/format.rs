@@ -23,7 +23,7 @@ impl<'a> Display for ScannerError<'a> {
             write!(
                 f,
                 "{} at {}:{}\n{}",
-                "Lexical error".if_supports_color(Stderr, |text| text.blue()),
+                "Error".if_supports_color(Stderr, |text| text.blue()),
                 line.if_supports_color(Stderr, |text| text.bright_red()),
                 pos.if_supports_color(Stderr, |text| text.red()),
                 message
