@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "chunk.h"
 #include "common.h"
@@ -18,6 +19,18 @@ typedef struct {
   bool hadError;
   bool panicMode;
 } Parser;
+
+typedef enum {
+    Black = 30,
+    Red = 31,
+    Green = 32,
+    Yellow = 33,
+    Blue = 34,
+    Magenta = 35,
+    Cyan = 36,
+    White = 37,
+    Reset = 0
+} TerminalColor;
 
 typedef enum {
   PREC_NONE,
@@ -41,7 +54,33 @@ typedef struct {
 } ParseRule;
 
 Parser parser;
+TerminalColor tc;
 Chunk *compilingChunk;
+
+char* getTerminalColor(TerminalColor color) {
+    char* str = malloc(sizeof(char) * 12);
+    sprintf(str, "\033[%dm", color);
+    return str;
+}
+
+char* colorizeSTR(const char* str, TerminalColor color) {
+    char* colorStr = getTerminalColor(color);
+    size_t length = strlen(str) + strlen(colorStr) + strlen(getTerminalColor(Reset)) + 1;
+    char* result = malloc(sizeof(char) * length);
+    sprintf(result, "%s%s%s", colorStr, str, getTerminalColor(Reset));
+    free(colorStr);
+    return result;
+}
+
+char* colorizeInt(int value, TerminalColor color) {
+    char* colorStr = getTerminalColor(color);
+    char* resetStr = getTerminalColor(Reset);
+    int length = snprintf(NULL, 0, "%d", value) + strlen(colorStr) + strlen(resetStr) + 1;
+    char* result = malloc(length * sizeof(char));
+    snprintf(result, length, "%s%d%s", colorStr, value, resetStr);
+    return result;
+}
+
 
 static void parsePrecedence(Precedence precedence);
 
@@ -49,19 +88,30 @@ static Chunk *currentChunk() { return compilingChunk; }
 
 static void errorAt(Token *token, const char *message) {
   if (parser.panicMode)
-    return;
+      return;
   parser.panicMode = true;
-  fprintf(stderr, "[line %d] Error", token->line);
+  // const char *lineError = getLineError();
+
+  int line = token->line;
 
   if (token->type == TOKEN_EOF) {
     fprintf(stderr, " at end");
   } else if (token->type == TOKEN_ERROR) {
     // Nothing
   } else {
-    fprintf(stderr, " at '%.*s'", token->length, token->start);
+    if (line < 10) {
+      fprintf(stderr, "[src/test.az-->%s]::%s '%.*s'\n",colorizeInt(line, Magenta), message, token->length, token->start);
+      fprintf(stderr, "0%d | %.*s \n", line - 1 /*(int)(lineError - lineError), lineError*/);
+      fprintf(stderr, "0%d | %.*s \n",line /*(int)(lineError - lineError), lineError*/);
+      fprintf(stderr, "0%d | %.*s \n", line + 1 /*(int)(lineError - lineError), lineError*/);
+    } else {
+      fprintf(stderr, "[src/test.az-->%d]::%s '%.*s'\n", token->line, message, token->length, token->start);
+      fprintf(stderr, "%d | %.*s \n", line - 1 /*(int)(lineError - lineError), lineError*/);
+      fprintf(stderr, "%d | %.*s \n",line /*(int)(lineError - lineError), lineError*/);
+      fprintf(stderr, "%d | %.*s \n", line + 1 /*(int)(lineError - lineError), lineError*/);
+    }
   }
 
-  fprintf(stderr, ": %s\n", message);
   parser.hadError = true;
 }
 
@@ -151,11 +201,6 @@ static void defineVariable(uint8_t global) {
   emitBytes(OP_DEFINE_GLOBAL, global);
 }
 
-static void printStatement() {
-  expression();
-  emitByte(OP_INFO);
-}
-
 static void varDeclaration() {
   uint8_t global = parserVaruable("Expected a variable name!");
 
@@ -164,7 +209,7 @@ static void varDeclaration() {
   } else {
     emitByte(OP_NIL);
   }
-  consume(TOKEN_SEMICOLON, "Expected ';' after variable declaration!");
+  // consume(TOKEN_SEMICOLON, "Expected ';' after variable declaration!");
 
   defineVariable(global);
 }
@@ -196,6 +241,7 @@ static void synchronize() {
 
 static void expressionStatement() {
   expression();
+  consume(TOKEN_SEMICOLON, "Expected ';' after expression!");
   emitByte(OP_POP);
 }
 
@@ -203,17 +249,18 @@ static void statement() {
   if (match(TOKEN_INFO)) {
     expression();
     consume(TOKEN_SEMICOLON, "Expected ';' after value!");
-    emitByte(OP_POP);
+    emitByte(OP_INFO);
   } else {
     expressionStatement();
-  }
-  if (match(TOKEN_VAR)) {
-    varDeclaration();
   }
 }
 
 static void declaration() {
-  statement();
+  if (match(TOKEN_VAR)) {
+    varDeclaration();
+  } else {
+    statement();
+  }
 
   if (parser.panicMode)
     synchronize();
@@ -372,7 +419,7 @@ static void parsePrecedence(Precedence precedence) {
   advance();
   ParseFn prefixRule = getRule(parser.previous.type)->prefix;
   if (prefixRule == NULL) {
-    error("Expected expression");
+    error("Unexpected expression");
     return;
   }
 
