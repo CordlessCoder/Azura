@@ -6,6 +6,7 @@ use std::{
 };
 
 use lending_iterator::LendingIterator;
+use proc_macro::TokenStream;
 
 pub use self::tokens::TokenKind;
 pub use crate::error::{ScannerError, ScannerErrorKind};
@@ -164,7 +165,7 @@ impl<'iter> LendingIterator for Scanner<'iter> {
                     }
                 }
                 '>' => {
-                    // > >=
+                    // > >= >> >>=
 
                     match chars.peek() {
                         Some('=') => {
@@ -184,7 +185,7 @@ impl<'iter> LendingIterator for Scanner<'iter> {
                     }
                 }
                 '<' => {
-                    // < <<= <=
+                    // < <= << <<=
                     match chars.peek() {
                         Some('=') => {
                             chars.next_char();
