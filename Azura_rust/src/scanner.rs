@@ -6,7 +6,6 @@ use std::{
 };
 
 use lending_iterator::LendingIterator;
-use proc_macro::TokenStream;
 
 pub use self::tokens::TokenKind;
 pub use crate::error::{ScannerError, ScannerErrorKind};

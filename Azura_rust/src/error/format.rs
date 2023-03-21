@@ -4,6 +4,8 @@ use owo_colors::{OwoColorize, Stream::Stderr, Style};
 
 use super::{ScannerError, ScannerErrorKind};
 
+const MAX_CONTEXT_LINES: usize = 4;
+
 impl<'a> Display for ScannerError<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         use ScannerErrorKind::*;
@@ -37,17 +39,25 @@ impl<'a> Display for ScannerError<'a> {
             Unmatched { token } => {
                 f.write_str("\n")?;
                 if let Some(token) = token {
-                    write!(f, "Unmatched token: {:?}", token)?
+                    write!(
+                        f,
+                        "Unmatched token: {:?}",
+                        token.if_supports_color(Stderr, |text| text.blue())
+                    )?
                 } else {
                     f.write_str("Unmatched token")?
                 };
 
-                "."
+                ""
             }
             IncompleteToken { token } => {
                 f.write_str("\n")?;
                 if let Some(token) = token {
-                    write!(f, "Unmatched token: {:?}", token)?
+                    write!(
+                        f,
+                        "Unmatched token: {:?}",
+                        token.if_supports_color(Stderr, |text| text.blue())
+                    )?
                 } else {
                     f.write_str("Unmatched token")?
                 };
@@ -68,12 +78,42 @@ impl<'a> Display for ScannerError<'a> {
             }
         };
         f.write_str(end_text)?;
-        if let Some(context) = context {
+        if let Some(context) = context.as_deref() {
             write!(
                 f,
-                "\nin {:?}",
-                context.if_supports_color(Stderr, |text| text.purple())
-            )?
+                " in:\n{}",
+                "\"".if_supports_color(Stderr, |text| text.purple())
+            )?;
+            let mut lines = context.lines();
+            if let Some(line) = lines.next() {
+                let _ = write!(
+                    f,
+                    "{}",
+                    line.if_supports_color(Stderr, |text| text.purple())
+                );
+            };
+            for _ in 1..MAX_CONTEXT_LINES {
+                if let Some(line) = lines.next() {
+                    let _ = write!(
+                        f,
+                        "\n{}",
+                        line.if_supports_color(Stderr, |text| text.purple())
+                    );
+                };
+            }
+
+            write!(
+                f,
+                "{}",
+                "\"".if_supports_color(Stderr, |text| text.purple())
+            )?;
+            if lines.next().is_some() {
+                write!(
+                    f,
+                    "{}",
+                    "...".if_supports_color(Stderr, |text| text.purple())
+                )?
+            }
         }
         Ok(())
     }
