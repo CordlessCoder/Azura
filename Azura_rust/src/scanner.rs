@@ -1,5 +1,6 @@
 mod tokens;
 use std::{
+    borrow::Cow,
     iter::{Enumerate, Peekable},
     str::Chars,
 };
@@ -164,26 +165,81 @@ impl<'iter> LendingIterator for Scanner<'iter> {
                 }
                 '>' => {
                     // > >=
-                    if chars.peek() == Some('=') {
-                        chars.next_char();
-                        Ok(GreaterOrEqual)
-                    } else {
-                        Ok(Greater)
+
+                    match chars.peek() {
+                        Some('=') => {
+                            chars.next_char();
+                            Ok(GreaterOrEqual)
+                        }
+                        Some('<') => {
+                            chars.next_char();
+                            if chars.peek() == Some('=') {
+                                Ok(RightShiftAssign)
+                            } else {
+                                Ok(RightShift)
+                            }
+                        }
+                        _ => Ok(Greater),
                     }
                 }
                 '<' => {
-                    // < <=
+                    // < <<= <=
+                    match chars.peek() {
+                        Some('=') => {
+                            chars.next_char();
+                            Ok(LessOrEqual)
+                        }
+                        Some('<') => {
+                            chars.next_char();
+                            if chars.peek() == Some('=') {
+                                Ok(LeftShiftAssign)
+                            } else {
+                                Ok(LeftShift)
+                            }
+                        }
+                        _ => Ok(Less),
+                    }
+                }
+                '%' => {
+                    // % %=
                     if chars.peek() == Some('=') {
                         chars.next_char();
-                        Ok(LessOrEqual)
+                        Ok(RemAssign)
                     } else {
-                        Ok(Less)
+                        Ok(Rem)
+                    }
+                }
+                '|' => {
+                    // | |=
+                    if chars.peek() == Some('=') {
+                        chars.next_char();
+                        Ok(BitOrAssign)
+                    } else {
+                        Ok(BitOr)
+                    }
+                }
+                '^' => {
+                    // ^ ^=
+                    if chars.peek() == Some('=') {
+                        chars.next_char();
+                        Ok(BitXorAssign)
+                    } else {
+                        Ok(BitXor)
+                    }
+                }
+                '&' => {
+                    // & &=
+                    if chars.peek() == Some('=') {
+                        chars.next_char();
+                        Ok(BitAndAssign)
+                    } else {
+                        Ok(BitAnd)
                     }
                 }
                 // String handling logic
                 quote if matches!(quote, '\'' | '"') => {
                     let Some(start) = chars.peek_idx() else {
-                        break Err(ScannerError { line: self.line, pos,  message: Some("Untermiated string at the end of input"), kind: ScannerErrorKind::IncompleteToken {token: Some(Str(""))}, context: None })
+                        break Err(ScannerError { line: self.line, pos,  message: Some("Untermiated string at the end of input".into()), kind: ScannerErrorKind::IncompleteToken {token: Some(Str(""))}, context: None })
                     };
                     let mut end = start;
                     let mut current = None;
@@ -198,7 +254,7 @@ impl<'iter> LendingIterator for Scanner<'iter> {
                                     token: Some(Str(&self.source[start - 1..end])),
                                 },
                                 context: Some(self.source.get(pos..end).unwrap()),
-                                message: Some("Unterminated string"),
+                                message: Some(Cow::Borrowed("Unterminated string")),
                             });
                         };
                         end += 1;
@@ -256,7 +312,16 @@ impl<'iter> LendingIterator for Scanner<'iter> {
 
                     if float {
                         if handled_suffix {
-                            Err(ScannerError { kind: ScannerErrorKind::IncorrectLiteral {parse_error: None} , line: self.line, pos, message: Some("Attempted to create a float literal with a leading zero or base suffix(0, 0b or 0x)"), context: Some(self.source.get(pos..=end).unwrap()) })
+                            Err(ScannerError {
+                                kind: ScannerErrorKind::IncorrectLiteral { parse_error: None },
+                                line: self.line,
+                                pos,
+                                message: Some(Cow::Owned(format!(
+                                    "literal prefix `{}` suggests base {radix} for a float",
+                                    &self.source[pos..pos + skip]
+                                ))),
+                                context: self.source.get(pos..=end),
+                            })
                         } else {
                             match integer.parse() {
                                 Ok(float) => Ok(Float(float)),
@@ -266,8 +331,8 @@ impl<'iter> LendingIterator for Scanner<'iter> {
                                     },
                                     line: self.line,
                                     pos,
-                                    message: Some("Failed to parse float literal"),
-                                    context: Some(self.source.get(pos..=end).unwrap()),
+                                    message: Some("Failed to parse float literal".into()),
+                                    context: self.source.get(pos..=end),
                                 }),
                             }
                         }
@@ -280,8 +345,8 @@ impl<'iter> LendingIterator for Scanner<'iter> {
                                 },
                                 line: self.line,
                                 pos,
-                                message: Some("Failed to parse integer literal"),
-                                context: Some(self.source.get(start..=end).unwrap()),
+                                message: Some("Failed to parse integer literal".into()),
+                                context: self.source.get(start..=end),
                             }),
                         }
                     }

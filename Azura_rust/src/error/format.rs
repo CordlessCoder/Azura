@@ -27,6 +27,8 @@ impl<'a> Display for ScannerError<'a> {
                 line.if_supports_color(Stderr, |text| text.bright_red()),
                 pos.if_supports_color(Stderr, |text| text.red()),
                 message
+                    .as_ref()
+                    .map(|x| x.as_ref())
                     .unwrap_or_default()
                     .if_supports_color(Stderr, |text| text.italic())
             )?

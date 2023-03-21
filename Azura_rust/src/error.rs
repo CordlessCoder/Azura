@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use crate::scanner::TokenKind;
 
 mod format;
@@ -36,6 +38,6 @@ pub struct ScannerError<'a> {
     pub kind: ScannerErrorKind<'a>,
     pub line: usize,
     pub pos: usize,
-    pub message: Option<&'a str>,
+    pub message: Option<Cow<'a, str>>,
     pub context: Option<&'a str>,
 }
