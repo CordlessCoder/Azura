@@ -4,7 +4,8 @@ use std::{
     str::Chars,
 };
 
-use self::tokens::TokenKind;
+pub use self::tokens::TokenKind;
+pub use crate::error::{ScannerError, ScannerErrorKind};
 
 #[derive(Debug)]
 pub struct Scanner<'a> {
@@ -44,11 +45,16 @@ impl<'a> Scanner<'a> {
         let out = 'mainloop: loop {
             use TokenKind::*;
             let Some((pos,ch)) = chars.next_both() else {
-                break Err(ScannerError {kind:  ScannerErrorKind::EndOfInput, line: self.line, pos:0, message: None});
+                break Err(ScannerError {kind:  ScannerErrorKind::EndOfInput, line: self.line, pos:0, message: None,
+                                    context: None,
+});
             };
             break match ch {
                 '\n' => {
                     self.line += 1;
+                    self.source = self.source.get(pos + 1..).unwrap();
+                    // Reset chars iterator as it needs to stay in sync with the source string
+                    chars = CharWrapper::new(self.source.chars().enumerate().peekable());
                     continue;
                 }
                 '(' => Ok(OPar),
@@ -92,7 +98,7 @@ impl<'a> Scanner<'a> {
                             } {
                                 chars.next_char();
                             }
-                            chars.next_char();
+                            // Not consuming the last newline as that would break the line count
                             continue;
                         }
                         /* block comments */
@@ -167,7 +173,7 @@ impl<'a> Scanner<'a> {
                 // String handling logic
                 quote if matches!(quote, '\'' | '"') => {
                     let Some(start) = chars.peek_idx() else {
-                        break Err(ScannerError { line: self.line, pos,  message: Some("String start at the end of input"), kind: ScannerErrorKind::IncompleteToken {token: Some(Str(""))} })
+                        break Err(ScannerError { line: self.line, pos,  message: Some("Untermiated string at the end of input"), kind: ScannerErrorKind::IncompleteToken {token: Some(Str(""))}, context: None })
                     };
                     let mut end = start;
                     let mut current = None;
@@ -181,7 +187,8 @@ impl<'a> Scanner<'a> {
                                 kind: ScannerErrorKind::Unmatched {
                                     token: Some(Str(&self.source[start - 1..end])),
                                 },
-                                message: Some("Unescaped string"),
+                                context: Some(self.source.get(pos..end).unwrap()),
+                                message: Some("Unterminated string"),
                             });
                         };
                         end += 1;
@@ -239,26 +246,32 @@ impl<'a> Scanner<'a> {
 
                     if float {
                         if handled_suffix {
-                            Err(ScannerError { kind: ScannerErrorKind::IncorrectLiteral { length: end - pos }, line: self.line, pos, message: Some("Attempted to create a float literal with a leading zero or base suffix(0, 0b or 0x)") })
+                            Err(ScannerError { kind: ScannerErrorKind::IncorrectLiteral {parse_error: None} , line: self.line, pos, message: Some("Attempted to create a float literal with a leading zero or base suffix(0, 0b or 0x)"), context: Some(self.source.get(pos..=end).unwrap()) })
                         } else {
                             match integer.parse() {
                                 Ok(float) => Ok(Float(float)),
-                                Err(_) => Err(ScannerError {
-                                    kind: ScannerErrorKind::IncorrectLiteral { length: end + 1 },
+                                Err(error) => Err(ScannerError {
+                                    kind: ScannerErrorKind::IncorrectLiteral {
+                                        parse_error: Some(Box::new(error)),
+                                    },
                                     line: self.line,
                                     pos,
                                     message: Some("Failed to parse float literal"),
+                                    context: Some(self.source.get(pos..=end).unwrap()),
                                 }),
                             }
                         }
                     } else {
                         match isize::from_str_radix(integer, radix) {
                             Ok(parsed) => Ok(Integer(parsed)),
-                            Err(_) => Err(ScannerError {
-                                kind: ScannerErrorKind::IncorrectLiteral { length: end + 1 },
+                            Err(error) => Err(ScannerError {
+                                kind: ScannerErrorKind::IncorrectLiteral {
+                                    parse_error: Some(Box::new(error)),
+                                },
                                 line: self.line,
                                 pos,
                                 message: Some("Failed to parse integer literal"),
+                                context: Some(self.source.get(start..=end).unwrap()),
                             }),
                         }
                     }
@@ -293,27 +306,4 @@ impl<'a> Scanner<'a> {
 
 fn numeric_terminator(check: char) -> bool {
     check.is_ascii_whitespace() || !check.is_alphanumeric() && check != '.'
-}
-
-#[derive(Debug, PartialEq, Default)]
-pub enum ScannerErrorKind<'a> {
-    #[default]
-    EndOfInput,
-    Unmatched {
-        token: Option<TokenKind<'a>>,
-    },
-    IncompleteToken {
-        token: Option<TokenKind<'a>>,
-    },
-    IncorrectLiteral {
-        length: usize,
-    },
-}
-
-#[derive(Debug, PartialEq, Default)]
-pub struct ScannerError<'a> {
-    pub kind: ScannerErrorKind<'a>,
-    pub line: usize,
-    pub pos: usize,
-    pub message: Option<&'a str>,
 }

@@ -11,6 +11,7 @@ pub enum TokenKind<'a> {
     Colon,
     Hashtag,
     // One or two character tokens
+    Walrus,
     Div,
     DivAssign,
     Mul,
@@ -27,7 +28,18 @@ pub enum TokenKind<'a> {
     GreaterOrEqual,
     Less,
     LessOrEqual,
-    Walrus,
+    BitOr, // Bitwise or, |
+    BitOrAssign,
+    BitXor, // Bitwise exclusive or, ^
+    BitXorAssign,
+    Rem, // Remainder, %
+    RemAssign,
+    BitAnd, // Bitwise and, &
+    BitAndAssign,
+    LeftShift, // Bitwise left-shift, <<
+    LeftShiftAssign,
+    RightShift, // Bitwise right-shift, >>
+    RightShiftAssign,
     // Literals
     Ident(&'a str),
     Str(&'a str),
