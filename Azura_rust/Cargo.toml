@@ -10,4 +10,5 @@ path = "src/lib.rs"
 name = "azura"
 
 [dependencies]
+lending-iterator = "0.1.6"
 owo-colors = { version = "3.5.0", features = ["supports-colors"] }

@@ -4,6 +4,8 @@ use std::{
     str::Chars,
 };
 
+use lending_iterator::LendingIterator;
+
 pub use self::tokens::TokenKind;
 pub use crate::error::{ScannerError, ScannerErrorKind};
 
@@ -39,15 +41,23 @@ impl<'a> Scanner<'a> {
     pub fn new(source: &'a str) -> Self {
         Self { source, line: 1 }
     }
+}
+use lending_iterator::prelude::*;
+#[gat]
+impl<'iter> LendingIterator for Scanner<'iter> {
+    type Item<'next>
+    where
+        Self: 'next,
+    = Result<TokenKind<'next>, ScannerError<'next>>;
 
-    pub fn next(&mut self) -> Result<TokenKind<'a>, ScannerError> {
+    fn next<'next>(
+        self: &'next mut Scanner<'iter>,
+    ) -> Option<Result<TokenKind<'next>, ScannerError<'next>>> {
         let mut chars = CharWrapper::new(self.source.chars().enumerate().peekable());
         let out = 'mainloop: loop {
             use TokenKind::*;
             let Some((pos,ch)) = chars.next_both() else {
-                break Err(ScannerError {kind:  ScannerErrorKind::EndOfInput, line: self.line, pos:0, message: None,
-                                    context: None,
-});
+                return None;
             };
             break match ch {
                 '\n' => {
@@ -300,7 +310,7 @@ impl<'a> Scanner<'a> {
         } else {
             self.source = "";
         }
-        out
+        Some(out)
     }
 }
 

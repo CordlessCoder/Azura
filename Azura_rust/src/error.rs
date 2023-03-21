@@ -2,10 +2,8 @@ use crate::scanner::TokenKind;
 
 mod format;
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub enum ScannerErrorKind<'a> {
-    #[default]
-    EndOfInput,
     Unmatched {
         token: Option<TokenKind<'a>>,
     },
@@ -20,7 +18,6 @@ pub enum ScannerErrorKind<'a> {
 impl<'a> PartialEq for ScannerErrorKind<'a> {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (Self::EndOfInput, Self::EndOfInput) => true,
             (Self::Unmatched { token }, Self::Unmatched { token: token2 }) if token == token2 => {
                 true
             }
@@ -34,7 +31,7 @@ impl<'a> PartialEq for ScannerErrorKind<'a> {
     }
 }
 
-#[derive(Debug, PartialEq, Default)]
+#[derive(Debug, PartialEq)]
 pub struct ScannerError<'a> {
     pub kind: ScannerErrorKind<'a>,
     pub line: usize,

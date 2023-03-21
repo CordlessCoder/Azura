@@ -14,10 +14,11 @@ impl<'a> Display for ScannerError<'a> {
             message,
             context,
         } = self;
-        let show_pos = match kind {
-            EndOfInput => false,
-            _ => true,
-        };
+        // let show_pos = match kind {
+        //     EndOfInput => false,
+        //     _ => true,
+        // };
+        let show_pos = true;
         if show_pos {
             write!(
                 f,
@@ -31,7 +32,6 @@ impl<'a> Display for ScannerError<'a> {
             )?
         };
         let end_text = match kind {
-            EndOfInput => "Reached end of input",
             Unmatched { token } => {
                 f.write_str("\n")?;
                 if let Some(token) = token {
