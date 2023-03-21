@@ -1,6 +1,6 @@
-use std::io::stdout;
+use std::io::{stdout, Write};
 
-use azura::scanner::{Scanner, ScannerError, ScannerErrorKind};
+use azura::scanner::Scanner;
 use lending_iterator::LendingIterator;
 
 fn main() {
@@ -12,10 +12,11 @@ fn main() {
     // let input = "";
     let scanner = Scanner::new(input);
 
+    let mut stdout = stdout().lock();
     scanner.for_each(|token| {
-        match token {
-            Ok(token) => println!("{token:?}"),
-            Err(error) => println!("{error}"),
+        let _ = match token {
+            Ok(token) => writeln!(stdout, "{token:?}"),
+            Err(error) => writeln!(stdout, "{error}"),
         };
     });
 }
