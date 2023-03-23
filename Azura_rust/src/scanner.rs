@@ -2,7 +2,7 @@ mod tokens;
 use std::{
     borrow::Cow,
     iter::{Enumerate, Peekable},
-    str::{Bytes, Chars},
+    str::Bytes,
 };
 
 use lending_iterator::LendingIterator;
@@ -115,13 +115,14 @@ impl<'iter> LendingIterator for Scanner<'iter> {
                         /* block comments */
                         Some(b'*') => {
                             let mut current = bytes.next_byte();
+                            let mut peek = bytes.peek();
                             while {
-                                let peek = bytes.peek();
                                 peek.is_some() && !(current == Some(b'*') && peek == Some(b'/'))
                             } {
-                                current = bytes.next_byte()
+                                current = bytes.next_byte();
+                                peek = bytes.peek();
                             }
-                            current = bytes.next_byte();
+                            bytes.next_byte();
                             continue;
                         }
                         _ => Ok(Div),
@@ -281,10 +282,10 @@ impl<'iter> LendingIterator for Scanner<'iter> {
                             break 'ragixpick None;
                         };
                             match suffix {
-                                b'b' => Some((2, 2)),
-                                b'x' => Some((16, 2)),
+                                b'b' => Some((2, 2, "binary")),
+                                b'x' => Some((16, 2, "hexadecimal")),
                                 b'0' | b'1' | b'2' | b'3' | b'4' | b'5' | b'6' | b'7' | b'8'
-                                | b'9' => Some((8, 1)),
+                                | b'9' => Some((8, 1, "octal")),
                                 _ => None,
                             }
                         } else {
@@ -292,7 +293,7 @@ impl<'iter> LendingIterator for Scanner<'iter> {
                         }
                     };
                     let handled_suffix = picked.is_some();
-                    let (radix, skip) = picked.unwrap_or((10, 0));
+                    let (radix, skip, base_name) = picked.unwrap_or((10, 0, "decimal"));
 
                     let mut float = false;
 
@@ -318,7 +319,7 @@ impl<'iter> LendingIterator for Scanner<'iter> {
                                 line: self.line,
                                 pos,
                                 message: Some(Cow::Owned(format!(
-                                    "literal prefix `{}` suggests base {radix} for a float",
+                                    "literal prefix `{}` suggests the float to be {base_name}",
                                     &self.source[pos..pos + skip]
                                 ))),
                                 context: self.source.get(pos..=end),
@@ -347,7 +348,7 @@ impl<'iter> LendingIterator for Scanner<'iter> {
                                 line: self.line,
                                 pos,
                                 message: Some(
-                                    format!("Failed to parse base {radix} integer literal").into(),
+                                    format!("Failed to parse {base_name} integer literal").into(),
                                 ),
                                 context: self.source.get(pos..=end),
                             }),

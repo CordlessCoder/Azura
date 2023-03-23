@@ -7,10 +7,10 @@ use owo_colors::OwoColorize;
 fn main() {
     let input = "// This is a comment
 'Incorrect integer:'
-228o
-\"Unterminated string:\"
-'
-/* ' */
+228
+''
+ /**** 8 */
+8
 
 
 
