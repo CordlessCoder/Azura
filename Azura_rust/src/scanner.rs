@@ -2,7 +2,7 @@ mod tokens;
 use std::{
     borrow::Cow,
     iter::{Enumerate, Peekable},
-    str::Chars,
+    str::{Bytes, Chars},
 };
 
 use lending_iterator::LendingIterator;
@@ -16,22 +16,22 @@ pub struct Scanner<'a> {
     line: usize,
 }
 
-struct CharWrapper<'a>(Peekable<Enumerate<Chars<'a>>>);
-impl<'a> CharWrapper<'a> {
-    fn new(iter: Peekable<Enumerate<Chars<'a>>>) -> Self {
+struct ByteWrapper<'a>(Peekable<Enumerate<Bytes<'a>>>);
+impl<'a> ByteWrapper<'a> {
+    fn new(iter: Peekable<Enumerate<Bytes<'a>>>) -> Self {
         Self(iter)
     }
-    fn next_char(&mut self) -> Option<char> {
-        self.0.next().map(|(_, ch)| ch)
+    fn next_byte(&mut self) -> Option<u8> {
+        self.0.next().map(|(_, b)| b)
     }
     fn next_idx(&mut self) -> Option<usize> {
         self.0.next().map(|(idx, _)| idx)
     }
-    fn next_both(&mut self) -> Option<(usize, char)> {
+    fn next_both(&mut self) -> Option<(usize, u8)> {
         self.0.next()
     }
-    fn peek(&mut self) -> Option<char> {
-        self.0.peek().map(|(_, ch)| *ch)
+    fn peek(&mut self) -> Option<u8> {
+        self.0.peek().map(|(_, b)| *b)
     }
     fn peek_idx(&mut self) -> Option<usize> {
         self.0.peek().map(|(idx, _)| *idx)
@@ -54,127 +54,127 @@ impl<'iter> LendingIterator for Scanner<'iter> {
     fn next<'next>(
         self: &'next mut Scanner<'iter>,
     ) -> Option<Result<TokenKind<'next>, ScannerError<'next>>> {
-        let mut chars = CharWrapper::new(self.source.chars().enumerate().peekable());
+        let mut bytes = ByteWrapper::new(self.source.bytes().enumerate().peekable());
         let out = 'mainloop: loop {
             use TokenKind::*;
-            let Some((pos,ch)) = chars.next_both() else {
+            let Some((pos,byte)) = bytes.next_both() else {
                 return None;
             };
-            break match ch {
-                '\n' => {
+            break match byte {
+                b'\n' => {
                     self.line += 1;
                     self.source = self.source.get(pos + 1..).unwrap();
-                    // Reset chars iterator as it needs to stay in sync with the source string
-                    chars = CharWrapper::new(self.source.chars().enumerate().peekable());
+                    // Reset bytes iterator as it needs to stay in sync with the string
+                    bytes = ByteWrapper::new(self.source.bytes().enumerate().peekable());
                     continue;
                 }
-                '(' => Ok(OPar),
-                ')' => Ok(CPar),
-                '{' => Ok(OBrace),
-                '}' => Ok(CBrace),
-                ',' => Ok(Comma),
-                '.' => Ok(Dot),
-                ';' => Ok(Semicolon),
-                '#' => Ok(Hashtag),
-                '+' => {
+                b'(' => Ok(OPar),
+                b')' => Ok(CPar),
+                b'{' => Ok(OBrace),
+                b'}' => Ok(CBrace),
+                b',' => Ok(Comma),
+                b'.' => Ok(Dot),
+                b';' => Ok(Semicolon),
+                b'#' => Ok(Hashtag),
+                b'+' => {
                     // + +=
-                    if chars.peek() == Some('=') {
-                        chars.next_char();
+                    if bytes.peek() == Some(b'=') {
+                        bytes.next_both();
                         Ok(AddAssign)
                     } else {
                         Ok(Add)
                     }
                 }
-                '-' => {
+                b'-' => {
                     // - -=
-                    if chars.peek() == Some('=') {
-                        chars.next_char();
+                    if bytes.peek() == Some(b'=') {
+                        bytes.next_byte();
                         Ok(SubAssign)
                     } else {
                         Ok(Sub)
                     }
                 }
-                '/' => {
+                b'/' => {
                     // / /=
-                    match chars.peek() {
-                        Some('=') => {
-                            chars.next_char();
+                    match bytes.peek() {
+                        Some(b'=') => {
+                            bytes.next_byte();
                             Ok(DivAssign)
                         }
                         // normal comment
-                        Some('/') => {
+                        Some(b'/') => {
                             while {
-                                let peek = chars.peek();
-                                peek.is_some() && peek != Some('\n')
+                                let peek = bytes.peek();
+                                peek.is_some() && peek != Some(b'\n')
                             } {
-                                chars.next_char();
+                                bytes.next_both();
                             }
                             // Not consuming the last newline as that would break the line count
                             continue;
                         }
                         /* block comments */
-                        Some('*') => {
-                            let mut cur_char = chars.next_char();
+                        Some(b'*') => {
+                            let mut current = bytes.next_byte();
                             while {
-                                let peek = chars.peek();
-                                peek.is_some() && !(cur_char == Some('*') && peek == Some('/'))
+                                let peek = bytes.peek();
+                                peek.is_some() && !(current == Some(b'*') && peek == Some(b'/'))
                             } {
-                                cur_char = chars.next_char()
+                                current = bytes.next_byte()
                             }
-                            chars.next_char();
+                            current = bytes.next_byte();
                             continue;
                         }
                         _ => Ok(Div),
                     }
                 }
-                '*' => {
+                b'*' => {
                     // * *=
-                    if chars.peek() == Some('=') {
-                        chars.next_char();
+                    if bytes.peek() == Some(b'=') {
+                        bytes.next_both();
                         Ok(MulAssign)
                     } else {
                         Ok(Mul)
                     }
                 }
-                ':' => {
+                b':' => {
                     // : :=
-                    if chars.peek() == Some('=') {
-                        chars.next_char();
+                    if bytes.peek() == Some(b'=') {
+                        bytes.next_byte();
                         Ok(Walrus)
                     } else {
                         Ok(Colon)
                     }
                 }
-                '=' => {
+                b'=' => {
                     // = ==
-                    if chars.peek() == Some('=') {
-                        chars.next_char();
+                    if bytes.peek() == Some(b'=') {
+                        bytes.next_byte();
                         Ok(Equal)
                     } else {
                         Ok(Reassignment)
                     }
                 }
-                '!' => {
+                b'!' => {
                     // ! !=
-                    if chars.peek() == Some('=') {
-                        chars.next_char();
+                    if bytes.peek() == Some(b'=') {
+                        bytes.next_both();
                         Ok(NotEqual)
                     } else {
                         Ok(Bang)
                     }
                 }
-                '>' => {
+                b'>' => {
                     // > >= >> >>=
 
-                    match chars.peek() {
-                        Some('=') => {
-                            chars.next_char();
+                    match bytes.peek() {
+                        Some(b'=') => {
+                            bytes.next_both();
                             Ok(GreaterOrEqual)
                         }
-                        Some('>') => {
-                            chars.next_char();
-                            if chars.peek() == Some('=') {
-                                chars.next_char();
+                        Some(b'>') => {
+                            bytes.next_both();
+                            if bytes.peek() == Some(b'=') {
+                                bytes.next_both();
                                 Ok(RightShiftAssign)
                             } else {
                                 Ok(RightShift)
@@ -183,17 +183,17 @@ impl<'iter> LendingIterator for Scanner<'iter> {
                         _ => Ok(Greater),
                     }
                 }
-                '<' => {
+                b'<' => {
                     // < <= << <<=
-                    match chars.peek() {
-                        Some('=') => {
-                            chars.next_char();
+                    match bytes.peek() {
+                        Some(b'=') => {
+                            bytes.next_both();
                             Ok(LessOrEqual)
                         }
-                        Some('<') => {
-                            chars.next_char();
-                            if chars.peek() == Some('=') {
-                                chars.next_char();
+                        Some(b'<') => {
+                            bytes.next_both();
+                            if bytes.peek() == Some(b'=') {
+                                bytes.next_both();
                                 Ok(LeftShiftAssign)
                             } else {
                                 Ok(LeftShift)
@@ -202,52 +202,52 @@ impl<'iter> LendingIterator for Scanner<'iter> {
                         _ => Ok(Less),
                     }
                 }
-                '%' => {
+                b'%' => {
                     // % %=
-                    if chars.peek() == Some('=') {
-                        chars.next_char();
+                    if bytes.peek() == Some(b'=') {
+                        bytes.next_both();
                         Ok(RemAssign)
                     } else {
                         Ok(Rem)
                     }
                 }
-                '|' => {
+                b'|' => {
                     // | |=
-                    if chars.peek() == Some('=') {
-                        chars.next_char();
+                    if bytes.peek() == Some(b'=') {
+                        bytes.next_both();
                         Ok(BitOrAssign)
                     } else {
                         Ok(BitOr)
                     }
                 }
-                '^' => {
+                b'^' => {
                     // ^ ^=
-                    if chars.peek() == Some('=') {
-                        chars.next_char();
+                    if bytes.peek() == Some(b'=') {
+                        bytes.next_both();
                         Ok(BitXorAssign)
                     } else {
                         Ok(BitXor)
                     }
                 }
-                '&' => {
+                b'&' => {
                     // & &=
-                    if chars.peek() == Some('=') {
-                        chars.next_char();
+                    if bytes.peek() == Some(b'=') {
+                        bytes.next_both();
                         Ok(BitAndAssign)
                     } else {
                         Ok(BitAnd)
                     }
                 }
                 // String handling logic
-                quote if matches!(quote, '\'' | '"') => {
-                    let Some(start) = chars.peek_idx() else {
+                quote if matches!(quote, b'\'' | b'"') => {
+                    let Some(start) = bytes.peek_idx() else {
                         break Err(ScannerError { line: self.line, pos,  message: Some("Untermiated string at the end of input".into()), kind: ScannerErrorKind::IncompleteToken {token: Some(Str(""))}, context: None })
                     };
                     let mut end = start;
                     let mut current = None;
                     // Used for escaping quotes with `\`
-                    while !(current != Some('\\') && chars.peek() == Some(quote)) {
-                        current = chars.next_char();
+                    while !(current != Some(b'\\') && bytes.peek() == Some(quote)) {
+                        current = bytes.next_byte();
                         if current.is_none() {
                             break 'mainloop Err(ScannerError {
                                 line: self.line,
@@ -261,7 +261,7 @@ impl<'iter> LendingIterator for Scanner<'iter> {
                         };
                         end += 1;
                     }
-                    chars.next_both(); // Consumes the final quote
+                    bytes.next_both(); // Consumes the final quote
                                        // SAFETY: end should never be advanced past the of string
                     Ok(Str(self.source.get(start..end).expect(
                         "Somehow tried to get a string outside of the array",
@@ -270,22 +270,21 @@ impl<'iter> LendingIterator for Scanner<'iter> {
                 digit
                     if matches!(
                         digit,
-                        '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9'
+                        b'0' | b'1' | b'2' | b'3' | b'4' | b'5' | b'6' | b'7' | b'8' | b'9'
                     ) =>
                 {
                     // Handle integer radix prefixes i.e 0b for binary, 0x for hexadecimal just 0
                     // for octal
                     let picked = 'ragixpick: {
-                        if digit == '0' {
-                            let Some(suffix) = chars.peek() else {
+                        if digit == b'0' {
+                            let Some(suffix) = bytes.peek() else {
                             break 'ragixpick None;
                         };
                             match suffix {
-                                'b' => Some((2, 2)),
-                                'x' => Some((16, 2)),
-                                '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => {
-                                    Some((8, 1))
-                                }
+                                b'b' => Some((2, 2)),
+                                b'x' => Some((16, 2)),
+                                b'0' | b'1' | b'2' | b'3' | b'4' | b'5' | b'6' | b'7' | b'8'
+                                | b'9' => Some((8, 1)),
                                 _ => None,
                             }
                         } else {
@@ -298,19 +297,19 @@ impl<'iter> LendingIterator for Scanner<'iter> {
                     let mut float = false;
 
                     (0..skip).for_each(|_| {
-                        chars.next_char();
+                        bytes.next_both();
                     });
                     let start = pos + skip;
                     let mut end = start;
                     // Keep "walking" forward until EOF or anything marked in `numeric_terminator`
                     while {
-                        let peek = chars.peek();
+                        let peek = bytes.peek();
                         peek.is_some() && !matches!(peek, Some(ch) if numeric_terminator(ch) )
                     } {
-                        float |= chars.next_char() == Some('.');
+                        float |= bytes.next_byte() == Some(b'.');
                         end += 1;
                     }
-                    let integer = &self.source[start..=end];
+                    let number = &self.source[start..=end];
 
                     if float {
                         if handled_suffix {
@@ -325,7 +324,7 @@ impl<'iter> LendingIterator for Scanner<'iter> {
                                 context: self.source.get(pos..=end),
                             })
                         } else {
-                            match integer.parse() {
+                            match number.parse() {
                                 Ok(float) => Ok(Float(float)),
                                 Err(error) => Err(ScannerError {
                                     kind: ScannerErrorKind::IncorrectLiteral {
@@ -339,7 +338,7 @@ impl<'iter> LendingIterator for Scanner<'iter> {
                             }
                         }
                     } else {
-                        match isize::from_str_radix(integer, radix) {
+                        match isize::from_str_radix(number, radix) {
                             Ok(parsed) => Ok(Integer(parsed)),
                             Err(error) => Err(ScannerError {
                                 kind: ScannerErrorKind::IncorrectLiteral {
@@ -363,18 +362,18 @@ impl<'iter> LendingIterator for Scanner<'iter> {
                     let mut end = start;
                     // Keep "walking" forward until EOF or anything marked in `numeric_terminator`
                     while {
-                        let peek = chars.peek();
+                        let peek = bytes.peek();
                         peek.is_some() && !matches!(peek, Some(ch) if ch.is_ascii_whitespace() )
                     } {
                         end += 1;
-                        chars.next_char();
+                        bytes.next_both();
                     }
                     let identifier = &self.source[start..=end];
                     Ok(Ident(identifier))
                 }
             };
         };
-        if let Some(consumed) = chars.next_idx() {
+        if let Some(consumed) = bytes.next_idx() {
             self.source = self.source.get(consumed..).unwrap_or_default()
         } else {
             self.source = "";
@@ -383,6 +382,6 @@ impl<'iter> LendingIterator for Scanner<'iter> {
     }
 }
 
-fn numeric_terminator(check: char) -> bool {
-    check.is_ascii_whitespace() || !check.is_alphanumeric() && check != '.'
+fn numeric_terminator(check: u8) -> bool {
+    check.is_ascii_whitespace() || !check.is_ascii_alphanumeric() && check != b'.'
 }

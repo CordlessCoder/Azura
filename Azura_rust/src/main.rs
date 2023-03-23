@@ -10,12 +10,13 @@ fn main() {
 228o
 \"Unterminated string:\"
 '
+/* ' */
+
 
 
 
 
 ";
-    // let input = "";
     let scanner = Scanner::new(input);
 
     let mut stdout = stdout().lock();
