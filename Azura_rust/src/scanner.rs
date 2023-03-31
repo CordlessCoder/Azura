@@ -274,8 +274,8 @@ impl<'iter> LendingIterator for Scanner<'iter> {
                         b'0' | b'1' | b'2' | b'3' | b'4' | b'5' | b'6' | b'7' | b'8' | b'9'
                     ) =>
                 {
-                    // Handle integer radix prefixes i.e 0b for binary, 0x for hexadecimal just 0
-                    // for octal
+                    // Handle integer radix prefixes i.e 0b for binary, 0x for hexadecimal,
+                    // 0o for octal
                     let picked = 'ragixpick: {
                         if digit == b'0' {
                             let Some(suffix) = bytes.peek() else {
@@ -284,8 +284,7 @@ impl<'iter> LendingIterator for Scanner<'iter> {
                             match suffix {
                                 b'b' => Some((2, 2, "binary")),
                                 b'x' => Some((16, 2, "hexadecimal")),
-                                b'0' | b'1' | b'2' | b'3' | b'4' | b'5' | b'6' | b'7' | b'8'
-                                | b'9' => Some((8, 1, "octal")),
+                                b'o' => Some((8, 2, "octal")),
                                 _ => None,
                             }
                         } else {
@@ -358,7 +357,6 @@ impl<'iter> LendingIterator for Scanner<'iter> {
                 ch if ch.is_ascii_whitespace() => continue,
                 // fallback for identifiers
                 _ => {
-                    // Assume this is an identity
                     let start = pos;
                     let mut end = start;
                     // Keep "walking" forward until EOF or anything marked in `numeric_terminator`

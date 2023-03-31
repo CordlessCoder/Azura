@@ -12,3 +12,4 @@ name = "azura"
 [dependencies]
 lending-iterator = "0.1.6"
 owo-colors = { version = "3.5.0", features = ["supports-colors"] }
+phf = { version = "0.11.1", features = ["macros"] }

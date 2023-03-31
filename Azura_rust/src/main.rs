@@ -1,30 +1,31 @@
-use std::io::{stderr, stdout, Write};
+use std::{
+    collections::HashMap,
+    io::{stderr, stdout, Write},
+};
 
-use azura::scanner::Scanner;
+use azura::{keywords, scanner::Scanner};
 use lending_iterator::LendingIterator;
 use owo_colors::OwoColorize;
 
 fn main() {
     let input = "// This is a comment
-'Incorrect integer:'
-228
-''
- /**** 8 */
-8
-
-
-
-
-
+switch idk {
+    case
+0b1010.a
+}
 ";
     let scanner = Scanner::new(input);
 
     let mut stdout = stdout().lock();
     let mut stderr = stderr().lock();
     let mut failure = false;
+    let scanner = scanner.with_keywords(&keywords::KEYWORDS);
+
     scanner.for_each(|token| {
         let _ = match token {
-            Ok(token) => writeln!(stdout, "{token:?}"),
+            Ok(token) => {
+                writeln!(stdout, "{token:?}")
+            }
             Err(error) => {
                 failure = true;
                 writeln!(stderr, "{error}")

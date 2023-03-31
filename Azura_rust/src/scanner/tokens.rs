@@ -1,3 +1,5 @@
+use crate::keywords::Keyword;
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum TokenKind<'a> {
     // Single-character tokens;
@@ -45,7 +47,7 @@ pub enum TokenKind<'a> {
     Str(&'a str),
     Integer(isize), // TODO: Handle overflows, arbitrary precision
     Float(f64),     // <-/
-
+    Keyword(Keyword), //
                     // // Keywords
                     // And,
                     // Class,
